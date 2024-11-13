@@ -1,0 +1,70 @@
+#include “/home/terra/TerraNG/terra/TerraNet.defs”
+// inclui parte especifica
+
+var ushort nodeId = getNodeId(); // precisamos saber
+var ushort pai;
+pktype usrMsg from radioMsg with // struct em CeuT
+	var ubyte[4] d8;
+	var ushort[4] d16;// esses sao alguns dos pacotes
+	var ulong[2] d32; // para transferencia de dados
+end
+// necessarios objetos diferentes para nao haver sobrescrita
+var usrMsg sndData;//dados com memoria
+var usrMsg sndTemp; // dados da temperatura
+var usrMsg qData;// queue
+sndData.type = 1;
+
+sndTemp.source = nodeId;// teremos info do No
+sndTemp.target = pai;// info ‘Quem Enviou Ao No’(pai)
+
+sndData.target = BROADCAST; // ENVIA PARA TODOS (inundacao)
+sndData.source = nodeId;//envia node ID
+// Montar arvore
+par/and do
+	if nodeId == 11 then // se no = fonte
+		emit SEND(sndData);//faz broadcast
+		sndTemp.target = 1;//
+	else
+		sndData = await RECEIVE;//espera receber pacote
+		sndTemp.target = sndData.source;//envia p/ pai o no
+		sndData.source = nodeId; // no de quem enviou gravado
+		emit SEND(sndData);// envia a data registrada
+	end
+with
+	await 10s;
+end
+
+
+//Loops paralelos
+par do 
+	// ler temperatura
+	await (nodeId/10)s;
+	loop do 
+		emit REQ_TEMP();
+		sndTemp.d16[0] = await TEMP; // espera inserir temperatura
+		inc sndTemp.d8[0];
+		qPut(sndTemp);// empilha temperatura
+		await 15s;
+	end
+with
+	//salvar mensagem de radio - filho
+	loop do
+		sndData = await RECEIVE; // espera receber
+		sndData.target = sndTemp.target;// ele esta passando
+		qPut(sndData); // temperatura para o pai.
+	end
+with
+	loop do
+		await Q_READY; //espera a fila estar vazia
+		loop do
+			qGet(qData);//gets msg from queue
+			emit SEND(qData);//envia msg
+			await SEND_DONE;//espera envio terminar
+			await 1s;
+			if qSize() ==0 then // se tam da queue ==0
+				break;
+			end	
+		end
+	end
+end	
+//fim			
