@@ -8,4 +8,5 @@ ISO to environment: https://www.inf.puc-rio.br/~prjterra/  ("download" part of t
 It is sending to next node, reading tempeture and sending to a stack the father of the node that is receiving - this phase can have some mistakes. - All at the same time.
 
 
-higher the delay where reading temperature - like 30s - better. Low delay means less time to everything happens well.
+Higher the delay where reading temperature - like 30s - better. Low delay means less time to everything happens well.
+Is right below this line: "qPut(sndTemp);// empilha temperatura"
